@@ -511,7 +511,7 @@ function _initBeeps() {
 function _unlockAudioOnce() {
   if (audioUnlocked) return;
   _initBeeps();
-  try { const a = new Audio(_wavCache800); a.volume = 0; a.play().catch(() => {}); } catch(e) {}
+  try { new Audio(_wavCache800).play().catch(() => {}); } catch(e) {}
   audioUnlocked = true;
 }
 
@@ -883,11 +883,7 @@ function resetAll() {
   updateSummary();
 }
 
-// INIT - Show audio banner on iOS
-if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
-  document.getElementById('audioBanner').classList.add('show');
-}
-
+// INIT
 state.timeLeft = currentEx().work;
 updateTimerPanel();
 buildList();
