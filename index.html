@@ -359,17 +359,6 @@
     from { transform: translateY(0); opacity: 1; }
     to { transform: translateY(-100%); opacity: 0; }
   }
-  .audio-banner p {
-    font-size: 12px;
-    color: var(--muted);
-    margin-bottom: 0.5rem;
-  }
-  .audio-banner .btn {
-    max-width: 150px;
-    margin: 0 auto;
-    min-width: 0;
-  }
-
   /* PULSING for active set */
   @keyframes pulse-border {
     0%, 100% { border-color: var(--accent); }
@@ -379,11 +368,6 @@
 </style>
 </head>
 <body>
-
-<div class="audio-banner" id="audioBanner">
-  <p>🔊 Tap to enable alarm sounds &nbsp;·&nbsp; <span style="opacity:0.6;font-size:11px;">Make sure your mute switch is off</span></p>
-  <button class="btn primary" id="enableAudioBtn" style="font-size:11px;">Enable Sound</button>
-</div>
 
 <div class="progress-bar-wrap"><div class="progress-bar-fill" id="globalBar"></div></div>
 
@@ -523,24 +507,12 @@ function _initBeeps() {
   _wavCache800 = _makeWavDataURI(800, 0.2);
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-  _initBeeps(); // pre-generate WAV data immediately
-  const enableBtn = document.getElementById('enableAudioBtn');
-  if (enableBtn) enableBtn.addEventListener('click', unlockAudio);
-});
-
-function unlockAudio() {
+// Called once from startStop() on the first user tap — unlocks audio on iOS
+function _unlockAudioOnce() {
+  if (audioUnlocked) return;
   _initBeeps();
-  // Fire a real beep inside the user gesture — this is what unlocks <audio> on iOS
-  try { new Audio(_wavCache800).play().catch(() => {}); } catch(e) {}
+  try { const a = new Audio(_wavCache800); a.volume = 0; a.play().catch(() => {}); } catch(e) {}
   audioUnlocked = true;
-  const banner = document.getElementById('audioBanner');
-  if (banner) {
-    banner.classList.remove('show');
-    banner.classList.add('hide');
-    setTimeout(() => { banner.style.display = 'none'; }, 300);
-  }
-  showToast('✅ Sound enabled!');
 }
 
 function _beep(hz) {
@@ -723,8 +695,6 @@ function updateSummary() {
   document.getElementById('sumDone').textContent = `${done} / ${total}`;
   const setsLeft = totalSets() - completedSets();
   document.getElementById('sumSets').textContent = setsLeft;
-  const secLeft = secondsLeft();
-  document.getElementById('sumLeft').textContent = secLeft > 60 ? Math.ceil(secLeft/60)+'m' : secLeft+'s';
   document.getElementById('sumBlock').textContent = `${state.currentBlockIdx+1}/5`;
   const pct = done / total * 100;
   document.getElementById('globalBar').style.width = pct + '%';
@@ -732,6 +702,7 @@ function updateSummary() {
 
 // START/STOP
 function startStop() {
+  _unlockAudioOnce(); // unlock audio on first user tap (required by iOS)
   if(!state.running) {
     if(!state.sessionStart) {
       state.sessionStart = Date.now() - state.sessionElapsed * 1000;
