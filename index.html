@@ -75,7 +75,7 @@
   /* SESSION SUMMARY */
   .summary-strip {
     display: grid;
-    grid-template-columns: repeat(4,1fr);
+    grid-template-columns: repeat(3,1fr);
     gap: 8px;
     margin-bottom: 1.5rem;
   }
@@ -381,7 +381,7 @@
 <body>
 
 <div class="audio-banner" id="audioBanner">
-  <p>🔊 Tap to enable alarm sounds</p>
+  <p>🔊 Tap to enable alarm sounds &nbsp;·&nbsp; <span style="opacity:0.6;font-size:11px;">Make sure your mute switch is off</span></p>
   <button class="btn primary" id="enableAudioBtn" style="font-size:11px;">Enable Sound</button>
 </div>
 
@@ -396,7 +396,6 @@
   <div class="summary-strip">
     <div class="sum-card"><div class="s-label">Done</div><div class="s-val" id="sumDone">0 / 15</div></div>
     <div class="sum-card"><div class="s-label">Sets left</div><div class="s-val" id="sumSets">28</div></div>
-    <div class="sum-card"><div class="s-label">Est. left</div><div class="s-val" id="sumLeft">53m</div></div>
     <div class="sum-card"><div class="s-label">Block</div><div class="s-val" id="sumBlock">1/5</div></div>
   </div>
 
@@ -495,8 +494,8 @@ const DATA = [
 
 // AUDIO — uses <audio> + inline WAV data URIs, no AudioContext needed (works in iOS Lockdown Mode)
 let audioUnlocked = false;
-let _audioRest = null;   // 600Hz — rest phase alert
-let _audioSet  = null;   // 800Hz — set complete alert
+let _wavCache600 = null;
+let _wavCache800 = null;
 
 function _makeWavDataURI(hz, durSec) {
   const sr = 22050, n = Math.floor(sr * durSec);
@@ -519,11 +518,9 @@ function _makeWavDataURI(hz, durSec) {
 }
 
 function _initBeeps() {
-  if (_audioRest) return;
-  _audioRest = new Audio(_makeWavDataURI(600, 0.2));
-  _audioSet  = new Audio(_makeWavDataURI(800, 0.2));
-  _audioRest.load();
-  _audioSet.load();
+  if (_wavCache600) return;
+  _wavCache600 = _makeWavDataURI(600, 0.2);
+  _wavCache800 = _makeWavDataURI(800, 0.2);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -533,37 +530,31 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function unlockAudio() {
-  try {
-    _initBeeps();
-    // Must call .play() inside a user gesture to unlock <audio> on iOS
-    const p = _audioSet.play();
-    if (p) p.catch(() => {});
-    audioUnlocked = true;
-    const banner = document.getElementById('audioBanner');
-    if (banner) {
-      banner.classList.remove('show');
-      banner.classList.add('hide');
-      setTimeout(() => { banner.style.display = 'none'; }, 300);
-    }
-    showToast('✅ Sound enabled!');
-  } catch (e) {
-    showToast('⚠ Sound setup failed');
+  _initBeeps();
+  // Fire a real beep inside the user gesture — this is what unlocks <audio> on iOS
+  try { new Audio(_wavCache800).play().catch(() => {}); } catch(e) {}
+  audioUnlocked = true;
+  const banner = document.getElementById('audioBanner');
+  if (banner) {
+    banner.classList.remove('show');
+    banner.classList.add('hide');
+    setTimeout(() => { banner.style.display = 'none'; }, 300);
   }
+  showToast('✅ Sound enabled!');
+}
+
+function _beep(hz) {
+  // Create a fresh Audio each time — most reliable on iOS Safari
+  const uri = hz === 600 ? _wavCache600 : _wavCache800;
+  if (!uri) return;
+  try { new Audio(uri).play().catch(() => {}); } catch(e) {}
 }
 
 function playAlarm(type = 'beep') {
   if (!audioUnlocked) return;
-  const audio = type === 'rest' ? _audioRest : _audioSet;
-  if (!audio) return;
-  // Double-beep: play immediately, then again after 220ms
-  try {
-    audio.currentTime = 0;
-    const p1 = audio.play();
-    if (p1) p1.catch(() => {});
-    setTimeout(() => {
-      try { audio.currentTime = 0; const p2 = audio.play(); if (p2) p2.catch(() => {}); } catch(e) {}
-    }, 220);
-  } catch (e) {}
+  const hz = type === 'rest' ? 600 : 800;
+  _beep(hz);
+  setTimeout(() => _beep(hz), 220);
   if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
 }
 
@@ -817,7 +808,9 @@ function advanceExercise() {
   state.currentExIdx++;
 
   if(state.currentExIdx >= block.exercises.length) {
-    // Block complete
+    // Block complete — collapse it
+    const prevIdx = state.currentBlockIdx;
+    state.blocks[prevIdx].open = false;
     state.currentBlockIdx++;
     state.currentExIdx = 0;
 
@@ -833,6 +826,7 @@ function advanceExercise() {
       document.getElementById('completeSub').textContent = 'Total time: ' + fmtClock(state.sessionElapsed);
       return;
     }
+    // Expand next block
     state.blocks[state.currentBlockIdx].open = true;
   }
 
