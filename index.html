@@ -331,6 +331,33 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+  /* AUDIO UNLOCK BANNER */
+  .audio-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: rgba(200,241,53,0.1);
+    border-bottom: 1px solid var(--accent);
+    padding: 1rem;
+    text-align: center;
+    z-index: 1000;
+    display: none;
+  }
+  .audio-banner.show {
+    display: block;
+  }
+  .audio-banner p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+  .audio-banner .btn {
+    max-width: 150px;
+    margin: 0 auto;
+    min-width: 0;
+  }
+
   /* PULSING for active set */
   @keyframes pulse-border {
     0%, 100% { border-color: var(--accent); }
@@ -340,6 +367,11 @@
 </style>
 </head>
 <body>
+
+<div class="audio-banner" id="audioBanner">
+  <p>🔊 Tap to enable alarm sounds</p>
+  <button class="btn primary" onclick="unlockAudio()" style="font-size:11px;">Enable Sound</button>
+</div>
 
 <div class="progress-bar-wrap"><div class="progress-bar-fill" id="globalBar"></div></div>
 
@@ -451,17 +483,35 @@ const DATA = [
 
 // AUDIO CONTEXT FOR ALARM SOUNDS
 let audioContext;
+let audioUnlocked = false;
+
+function unlockAudio() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  
+  // Play test beep to unlock audio on iOS
+  playBeep(audioContext.currentTime, 0.1, 800);
+  
+  audioUnlocked = true;
+  document.getElementById('audioBanner').classList.remove('show');
+}
+
 function initAudioContext() {
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
   }
+  if (audioContext.state === 'suspended') {
+    audioContext.resume();
+  }
 }
 
 function playAlarm(type = 'beep') {
+  if (!audioUnlocked) return;
+  
   try {
     initAudioContext();
     const now = audioContext.currentTime;
-    const duration = 0.3;
     
     if (type === 'beep') {
       // Double beep for general timer
@@ -472,26 +522,36 @@ function playAlarm(type = 'beep') {
       playBeep(now, 0.2, 600);
       playBeep(now + 0.23, 0.2, 600);
     }
+    
+    // Haptic feedback on iOS
+    if (navigator.vibrate) {
+      navigator.vibrate([100, 50, 100]);
+    }
   } catch (e) {
     console.log('Audio not available:', e);
   }
 }
 
 function playBeep(startTime, duration, frequency) {
-  const osc = audioContext.createOscillator();
-  const gain = audioContext.createGain();
-  
-  osc.connect(gain);
-  gain.connect(audioContext.destination);
-  
-  osc.frequency.value = frequency;
-  osc.type = 'sine';
-  
-  gain.gain.setValueAtTime(0.3, startTime);
-  gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-  
-  osc.start(startTime);
-  osc.stop(startTime + duration);
+  try {
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    
+    osc.frequency.value = frequency;
+    osc.type = 'sine';
+    
+    // Higher volume for iOS
+    gain.gain.setValueAtTime(0.5, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+    
+    osc.start(startTime);
+    osc.stop(startTime + duration);
+  } catch (e) {
+    console.log('Beep error:', e);
+  }
 }
 
 // STATE
@@ -845,7 +905,11 @@ function resetAll() {
   updateSummary();
 }
 
-// INIT
+// INIT - Show audio banner on iOS
+if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+  document.getElementById('audioBanner').classList.add('show');
+}
+
 state.timeLeft = currentEx().work;
 updateTimerPanel();
 buildList();
