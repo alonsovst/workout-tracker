@@ -173,7 +173,7 @@
   .timer-big.work      { color: var(--accent); }
   .timer-big.rest      { color: var(--accent2); }
   .timer-big.done      { color: var(--muted); }
-  .timer-big.countdown { color: var(--text); }
+  .timer-big.countdown { color: var(--danger); }
   .timer-phase-badge {
     padding: 4px 12px;
     border-radius: 20px;
@@ -186,7 +186,7 @@
   .phase-work      { background: rgba(200,241,53,0.15); color: var(--accent); }
   .phase-rest      { background: rgba(241,192,53,0.15); color: var(--accent2); }
   .phase-done      { background: rgba(255,255,255,0.07); color: var(--muted); }
-  .phase-countdown { background: rgba(240,240,240,0.1); color: var(--text); }
+  .phase-countdown { background: rgba(255,68,68,0.15); color: var(--danger); }
 
   /* Progress ring */
   .ring-wrap {
@@ -504,7 +504,8 @@ let _audioCtx = null;
 let _firstStart = true;
 let _isFirstExerciseStart = false;
 const _startAudio = new Audio('start.mp3'); // played in user-gesture context, so regular Audio is fine
-let _moveonBuffer = null; // decoded via AudioContext so it can fire from the timer
+let _moveonBuffer    = null; // decoded via AudioContext so it can fire from the timer
+let _completedBuffer = null;
 
 // Called from startStop() — must run inside a real user tap on iOS
 function _unlockAudioOnce() {
@@ -520,20 +521,23 @@ function _unlockAudioOnce() {
     src.connect(_audioCtx.destination);
     src.start(0);
     audioUnlocked = true; // set synchronously too as belt-and-suspenders
-    // Decode moveon.mp3 via AudioContext so it can fire from setInterval (iOS requirement)
+    // Decode MP3s via AudioContext so they can fire from setInterval (iOS requirement)
     fetch('moveon.mp3').then(r => r.arrayBuffer()).then(ab => _audioCtx.decodeAudioData(ab)).then(buf => { _moveonBuffer = buf; }).catch(() => {});
+    fetch('completed.mp3').then(r => r.arrayBuffer()).then(ab => _audioCtx.decodeAudioData(ab)).then(buf => { _completedBuffer = buf; }).catch(() => {});
   } catch(e) {}
 }
 
-function _playMoveon() {
-  if (!_audioCtx || !_moveonBuffer) return;
+function _playBuffer(buf) {
+  if (!_audioCtx || !buf) return;
   try {
     const src = _audioCtx.createBufferSource();
-    src.buffer = _moveonBuffer;
+    src.buffer = buf;
     src.connect(_audioCtx.destination);
     src.start(0);
   } catch(e) {}
 }
+function _playMoveon()    { _playBuffer(_moveonBuffer); }
+function _playCompleted() { _playBuffer(_completedBuffer); }
 
 function _playTone(hz, durSec) {
   if (!_audioCtx) return;
@@ -708,7 +712,7 @@ function updateCountdownDisplay() {
     cd.className = 'timer-big countdown';
     badge.className = 'timer-phase-badge phase-countdown';
     badge.textContent = 'Get Ready';
-    ring.style.stroke = '#888';
+    ring.style.stroke = '#ff4444';
   } else if(state.phase === 'work') {
     cd.className = 'timer-big work';
     badge.className = 'timer-phase-badge phase-work';
@@ -738,12 +742,10 @@ function updateSummary() {
 function startStop() {
   _unlockAudioOnce(); // unlock audio on first user tap (required by iOS)
   if(!state.running) {
-    // First-ever Start: play hype audio. Subsequent starts (next exercise): play chime.
+    // Play hype audio on the very first Start tap only
     if(_firstStart) {
       _firstStart = false;
       try { _startAudio.currentTime = 0; _startAudio.play().catch(() => {}); } catch(e) {}
-    } else {
-      playAlarm('beep');
     }
     if(!state.sessionStart) {
       state.sessionStart = Date.now() - state.sessionElapsed * 1000;
@@ -781,9 +783,10 @@ function runTimer() {
     updateCountdownDisplay();
     if(state.timeLeft <= 0) {
       if(state.phase === 'countdown') {
-        // Countdown done — begin work
+        // Countdown done — begin work, fire chime to signal timer has started
         state.phase = 'work';
         state.timeLeft = currentEx().work;
+        playAlarm('beep');
         updateCountdownDisplay();
       } else if(state.phase === 'work') {
         // Move to rest
@@ -845,6 +848,7 @@ function advanceExercise() {
       clearInterval(state.timerInterval);
       clearInterval(state.sessionInterval);
       state.running = false;
+      _playCompleted();
       document.querySelector('.fixed-top').style.display = 'none';
       const cs = document.getElementById('completeScreen');
       cs.classList.add('show');
