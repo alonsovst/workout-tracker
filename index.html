@@ -395,7 +395,6 @@
 
   <!-- TIMER PANEL -->
   <div class="timer-panel" id="timerPanel">
-    <div class="timer-block-label" id="tBlockLabel">Block 1 · Warm-up</div>
     <div class="timer-ex-name" id="tExName">Dead Hang</div>
     <div class="timer-set-info" id="tSetInfo">Set 1 of 2 · 40s work · 20s rest</div>
     <div class="timer-display-row">
@@ -415,14 +414,11 @@
       <button class="btn primary" id="btnStart" onclick="startStop()">
         <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg> Start
       </button>
-      <button class="btn" onclick="skipPhase()">
-        <svg viewBox="0 0 24 24"><line x1="5" y1="5" x2="5" y2="19"/><polygon points="9,5 20,12 9,19"/></svg> Skip
+      <button class="btn danger" onclick="resetCurrent()">
+        <svg viewBox="0 0 24 24"><polyline points="1,4 1,10 7,10"/><path d="M3.51,15a9,9,0,1,0,.49-3"/></svg>
       </button>
       <button class="btn" onclick="markSetDone()">
         <svg viewBox="0 0 24 24"><polyline points="20,6 9,17 4,12"/></svg> Done
-      </button>
-      <button class="btn danger" onclick="resetCurrent()">
-        <svg viewBox="0 0 24 24"><polyline points="1,4 1,10 7,10"/><path d="M3.51,15a9,9,0,1,0,.49-3"/></svg>
       </button>
     </div>
   </div>
@@ -491,9 +487,9 @@ const DATA = [
 let audioUnlocked = false;
 let _audioCtx = null;
 let _firstStart = true;
-let _isFirstExerciseStart = false; // true after first start, until next exercise begins
-const _startAudio  = new Audio('start.mp3');
-const _moveonAudio = new Audio('moveon.mp3');
+let _isFirstExerciseStart = false;
+const _startAudio = new Audio('start.mp3'); // played in user-gesture context, so regular Audio is fine
+let _moveonBuffer = null; // decoded via AudioContext so it can fire from the timer
 
 // Called from startStop() — must run inside a real user tap on iOS
 function _unlockAudioOnce() {
@@ -509,6 +505,18 @@ function _unlockAudioOnce() {
     src.connect(_audioCtx.destination);
     src.start(0);
     audioUnlocked = true; // set synchronously too as belt-and-suspenders
+    // Decode moveon.mp3 via AudioContext so it can fire from setInterval (iOS requirement)
+    fetch('moveon.mp3').then(r => r.arrayBuffer()).then(ab => _audioCtx.decodeAudioData(ab)).then(buf => { _moveonBuffer = buf; }).catch(() => {});
+  } catch(e) {}
+}
+
+function _playMoveon() {
+  if (!_audioCtx || !_moveonBuffer) return;
+  try {
+    const src = _audioCtx.createBufferSource();
+    src.buffer = _moveonBuffer;
+    src.connect(_audioCtx.destination);
+    src.start(0);
   } catch(e) {}
 }
 
@@ -663,7 +671,6 @@ function updateTimerPanel() {
   const b = DATA[state.currentBlockIdx];
   const e = b.exercises[state.currentExIdx];
   const es = currentExState();
-  document.getElementById('tBlockLabel').textContent = b.blockLabel;
   document.getElementById('tExName').textContent = e.name;
   document.getElementById('tSetInfo').textContent = `Set ${state.currentSet+1} of ${e.sets} · ${e.work}s work · ${e.rest}s rest`;
   document.getElementById('ringSet').textContent = `${state.currentSet+1}/${e.sets}`;
@@ -764,8 +771,8 @@ function runTimer() {
         const _e  = currentEx();
         const _lastSet = (_es.setsCompleted + 1) >= _e.sets;
         if(_lastSet) {
-          // Exercise done — play Move On sound
-          try { _moveonAudio.currentTime = 0; _moveonAudio.play().catch(() => {}); } catch(err) {}
+          // Exercise done — play Move On sound via AudioContext (works from timer on iOS)
+          _playMoveon();
         } else {
           playAlarm('beep');
         }
