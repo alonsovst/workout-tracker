@@ -449,6 +449,51 @@ const DATA = [
   }
 ];
 
+// AUDIO CONTEXT FOR ALARM SOUNDS
+let audioContext;
+function initAudioContext() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+}
+
+function playAlarm(type = 'beep') {
+  try {
+    initAudioContext();
+    const now = audioContext.currentTime;
+    const duration = 0.3;
+    
+    if (type === 'beep') {
+      // Double beep for general timer
+      playBeep(now, 0.15, 800);
+      playBeep(now + 0.18, 0.15, 800);
+    } else if (type === 'rest') {
+      // Lower pitch beep for rest time
+      playBeep(now, 0.2, 600);
+      playBeep(now + 0.23, 0.2, 600);
+    }
+  } catch (e) {
+    console.log('Audio not available:', e);
+  }
+}
+
+function playBeep(startTime, duration, frequency) {
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  
+  osc.frequency.value = frequency;
+  osc.type = 'sine';
+  
+  gain.gain.setValueAtTime(0.3, startTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+  
+  osc.start(startTime);
+  osc.stop(startTime + duration);
+}
+
 // STATE
 let state = {
   running: false,
@@ -661,10 +706,12 @@ function runTimer() {
         // Move to rest
         state.phase = 'rest';
         state.timeLeft = currentEx().rest;
+        playAlarm('rest');
         showToast('✅ Rest time!');
         updateCountdownDisplay();
       } else {
         // Set complete
+        playAlarm('beep');
         finishSet();
       }
     }
@@ -745,6 +792,7 @@ function skipPhase() {
 function markSetDone() {
   clearInterval(state.timerInterval);
   state.timeLeft = 0;
+  playAlarm('beep');
   finishSet();
   if(state.running) runTimer();
 }
