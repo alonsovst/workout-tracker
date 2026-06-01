@@ -513,65 +513,70 @@ const DATA = [
   }
 ];
 
-// AUDIO — pure <audio> elements, no AudioContext.
-// AudioContext claims exclusive iOS audio session and pauses Spotify/YouTube Music.
-// <audio> elements mix with background audio when pre-unlocked via user gesture.
-// Key: touch each element during Start tap → iOS allows replaying from timers.
+// AUDIO — AudioContext created inside the Start user-gesture so iOS allows
+// timer-triggered playback without further interaction.
 let audioUnlocked = false;
+let _audioCtx = null;
 let _firstStart = true;
-const _startAudio = new Audio('start.mp3');
-let _beep600 = null;
-let _beep800 = null;
-let _moveonAudio    = null;
-let _completedAudio = null;
+let _isFirstExerciseStart = false;
+const _startAudio = new Audio('start.mp3'); // played in user-gesture context, so regular Audio is fine
+let _moveonBuffer    = null; // decoded via AudioContext so it can fire from the timer
+let _completedBuffer = null;
 
-function _makeWavDataURI(hz, durSec) {
-  const sr = 22050, n = Math.floor(sr * durSec);
-  const buf = new ArrayBuffer(44 + n * 2);
-  const v = new DataView(buf);
-  const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
-  ws(0,'RIFF'); v.setUint32(4,36+n*2,true); ws(8,'WAVE');
-  ws(12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
-  v.setUint32(24,sr,true); v.setUint32(28,sr*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
-  ws(36,'data'); v.setUint32(40,n*2,true);
-  for (let i = 0; i < n; i++) {
-    const t = i / sr;
-    const fade = i < sr*0.005 ? i/(sr*0.005) : Math.min(1,(n-i)/(sr*0.06));
-    v.setInt16(44+i*2, Math.round(Math.sin(2*Math.PI*hz*t)*fade*0.65*32767), true);
-  }
-  const bytes = new Uint8Array(buf);
-  let bin = ''; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return 'data:audio/wav;base64,' + btoa(bin);
-}
-
-// Called from startStop() — must be inside a real user tap on iOS.
-// Touching each Audio element here unlocks it for all future timer-triggered plays.
+// Called from startStop() — must run inside a real user tap on iOS
 function _unlockAudioOnce() {
   if (audioUnlocked) return;
-  _beep600 = new Audio(_makeWavDataURI(600, 0.22));
-  _beep800 = new Audio(_makeWavDataURI(800, 0.22));
-  _moveonAudio    = new Audio('moveon.mp3');
-  _completedAudio = new Audio('completed.mp3');
-  // Touch each element inside the gesture — iOS grants replay rights for the session
-  [_beep600, _beep800, _moveonAudio, _completedAudio].forEach(a => {
-    const p = a.play();
-    if (p) p.then(() => { a.pause(); a.currentTime = 0; }).catch(() => {});
-  });
-  audioUnlocked = true;
+  try {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // iOS starts AudioContext in 'suspended'; resume() inside gesture unlocks it permanently
+    _audioCtx.resume().then(() => { audioUnlocked = true; });
+    // Kick a silent buffer so the session registers immediately
+    const buf = _audioCtx.createBuffer(1, 1, _audioCtx.sampleRate);
+    const src = _audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(_audioCtx.destination);
+    src.start(0);
+    audioUnlocked = true; // set synchronously too as belt-and-suspenders
+    // Decode MP3s via AudioContext so they can fire from setInterval (iOS requirement)
+    fetch('moveon.mp3').then(r => r.arrayBuffer()).then(ab => _audioCtx.decodeAudioData(ab)).then(buf => { _moveonBuffer = buf; }).catch(() => {});
+    fetch('completed.mp3').then(r => r.arrayBuffer()).then(ab => _audioCtx.decodeAudioData(ab)).then(buf => { _completedBuffer = buf; }).catch(() => {});
+  } catch(e) {}
 }
 
-function _playAudio(audio) {
-  if (!audio) return;
-  try { audio.currentTime = 0; audio.play().catch(() => {}); } catch(e) {}
+function _playBuffer(buf) {
+  if (!_audioCtx || !buf) return;
+  try {
+    const src = _audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(_audioCtx.destination);
+    src.start(0);
+  } catch(e) {}
 }
-function _playMoveon()    { _playAudio(_moveonAudio); }
-function _playCompleted() { _playAudio(_completedAudio); }
+function _playMoveon()    { _playBuffer(_moveonBuffer); }
+function _playCompleted() { _playBuffer(_completedBuffer); }
+
+function _playTone(hz, durSec) {
+  if (!_audioCtx) return;
+  try {
+    const osc  = _audioCtx.createOscillator();
+    const gain = _audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(_audioCtx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = hz;
+    const t = _audioCtx.currentTime;
+    gain.gain.setValueAtTime(0.6, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + durSec);
+    osc.start(t);
+    osc.stop(t + durSec);
+  } catch(e) {}
+}
 
 function playAlarm(type = 'beep') {
-  if (!audioUnlocked) return;
-  const audio = type === 'rest' ? _beep600 : _beep800;
-  _playAudio(audio);
-  setTimeout(() => _playAudio(audio), 260);
+  if (!audioUnlocked || !_audioCtx) return;
+  const hz = type === 'rest' ? 600 : 800;
+  _playTone(hz, 0.22);
+  setTimeout(() => _playTone(hz, 0.22), 260);
   if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
 }
 
