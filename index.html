@@ -83,6 +83,11 @@
     grid-template-columns: repeat(3,1fr);
     gap: 8px;
     margin-bottom: 1.5rem;
+    position: sticky;
+    top: 57px; /* sits just below the header */
+    z-index: 99;
+    background: var(--bg);
+    padding: 0.6rem 0 0.4rem;
   }
   .sum-card {
     background: var(--surface);
@@ -486,7 +491,9 @@ const DATA = [
 let audioUnlocked = false;
 let _audioCtx = null;
 let _firstStart = true;
-const _startAudio = new Audio('start.mp3');
+let _isFirstExerciseStart = false; // true after first start, until next exercise begins
+const _startAudio  = new Audio('start.mp3');
+const _moveonAudio = new Audio('moveon.mp3');
 
 // Called from startStop() — must run inside a real user tap on iOS
 function _unlockAudioOnce() {
@@ -704,10 +711,12 @@ function updateSummary() {
 function startStop() {
   _unlockAudioOnce(); // unlock audio on first user tap (required by iOS)
   if(!state.running) {
-    // Play hype audio on the very first Start tap only
+    // First-ever Start: play hype audio. Subsequent starts (next exercise): play chime.
     if(_firstStart) {
       _firstStart = false;
       try { _startAudio.currentTime = 0; _startAudio.play().catch(() => {}); } catch(e) {}
+    } else {
+      playAlarm('beep');
     }
     if(!state.sessionStart) {
       state.sessionStart = Date.now() - state.sessionElapsed * 1000;
@@ -750,8 +759,16 @@ function runTimer() {
         showToast('✅ Rest time!');
         updateCountdownDisplay();
       } else {
-        // Set complete
-        playAlarm('beep');
+        // Set complete — check if this finishes the exercise before playing sound
+        const _es = currentExState();
+        const _e  = currentEx();
+        const _lastSet = (_es.setsCompleted + 1) >= _e.sets;
+        if(_lastSet) {
+          // Exercise done — play Move On sound
+          try { _moveonAudio.currentTime = 0; _moveonAudio.play().catch(() => {}); } catch(err) {}
+        } else {
+          playAlarm('beep');
+        }
         finishSet();
       }
     }
@@ -874,6 +891,7 @@ function resetCurrent() {
 
 function resetAll() {
   _firstStart = true;
+  _isFirstExerciseStart = false;
   clearInterval(state.timerInterval);
   clearInterval(state.sessionInterval);
   state = {
