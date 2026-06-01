@@ -493,127 +493,78 @@ const DATA = [
   }
 ];
 
-// AUDIO CONTEXT FOR ALARM SOUNDS
-let audioContext;
+// AUDIO — uses <audio> + inline WAV data URIs, no AudioContext needed (works in iOS Lockdown Mode)
 let audioUnlocked = false;
+let _audioRest = null;   // 600Hz — rest phase alert
+let _audioSet  = null;   // 800Hz — set complete alert
 
-// Setup button listener
-document.addEventListener('DOMContentLoaded', function() {
-  const enableBtn = document.getElementById('enableAudioBtn');
-  if (enableBtn) {
-    enableBtn.addEventListener('click', unlockAudio);
+function _makeWavDataURI(hz, durSec) {
+  const sr = 22050, n = Math.floor(sr * durSec);
+  const buf = new ArrayBuffer(44 + n * 2);
+  const v = new DataView(buf);
+  const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  ws(0,'RIFF'); v.setUint32(4, 36 + n*2, true); ws(8,'WAVE');
+  ws(12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,sr,true); v.setUint32(28,sr*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+  ws(36,'data'); v.setUint32(40, n*2, true);
+  for (let i = 0; i < n; i++) {
+    const t = i / sr;
+    const fade = i < sr*0.005 ? i/(sr*0.005) : Math.min(1, (n - i) / (sr * 0.08));
+    v.setInt16(44 + i*2, Math.round(Math.sin(2*Math.PI*hz*t) * fade * 0.65 * 32767), true);
   }
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return 'data:audio/wav;base64,' + btoa(bin);
+}
+
+function _initBeeps() {
+  if (_audioRest) return;
+  _audioRest = new Audio(_makeWavDataURI(600, 0.2));
+  _audioSet  = new Audio(_makeWavDataURI(800, 0.2));
+  _audioRest.load();
+  _audioSet.load();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  _initBeeps(); // pre-generate WAV data immediately
+  const enableBtn = document.getElementById('enableAudioBtn');
+  if (enableBtn) enableBtn.addEventListener('click', unlockAudio);
 });
 
 function unlockAudio() {
   try {
-    console.log('unlockAudio called');
-    
-    if (!audioContext) {
-      console.log('Creating AudioContext');
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    
-    // Resume audio context if suspended
-    if (audioContext.state === 'suspended') {
-      console.log('Resuming suspended AudioContext');
-      audioContext.resume().then(() => {
-        console.log('AudioContext resumed');
-      });
-    }
-    
-    // Play test beep to unlock audio on iOS
-    const now = audioContext.currentTime;
-    console.log('Playing test beep at', now);
-    playBeep(now, 0.15, 800);
-    
-    // Haptic feedback
-    if (navigator.vibrate) {
-      console.log('Vibrating');
-      navigator.vibrate([100, 50, 100]);
-    }
-    
+    _initBeeps();
+    // Must call .play() inside a user gesture to unlock <audio> on iOS
+    const p = _audioSet.play();
+    if (p) p.catch(() => {});
     audioUnlocked = true;
-    console.log('Audio unlocked, audioUnlocked =', audioUnlocked);
-    
-    // Hide banner with animation
     const banner = document.getElementById('audioBanner');
     if (banner) {
       banner.classList.remove('show');
       banner.classList.add('hide');
-      
-      // Remove from DOM after animation
-      setTimeout(() => {
-        banner.style.display = 'none';
-      }, 300);
+      setTimeout(() => { banner.style.display = 'none'; }, 300);
     }
-    
     showToast('✅ Sound enabled!');
   } catch (e) {
-    console.error('Failed to unlock audio:', e);
     showToast('⚠ Sound setup failed');
   }
 }
 
-function initAudioContext() {
-  if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  }
-  if (audioContext.state === 'suspended') {
-    audioContext.resume();
-  }
-}
-
 function playAlarm(type = 'beep') {
-  if (!audioUnlocked) {
-    console.log('Audio not unlocked yet, skipping alarm');
-    return;
-  }
-  
+  if (!audioUnlocked) return;
+  const audio = type === 'rest' ? _audioRest : _audioSet;
+  if (!audio) return;
+  // Double-beep: play immediately, then again after 220ms
   try {
-    initAudioContext();
-    const now = audioContext.currentTime;
-    
-    if (type === 'beep') {
-      // Double beep for general timer
-      playBeep(now, 0.15, 800);
-      playBeep(now + 0.18, 0.15, 800);
-    } else if (type === 'rest') {
-      // Lower pitch beep for rest time
-      playBeep(now, 0.2, 600);
-      playBeep(now + 0.23, 0.2, 600);
-    }
-    
-    // Haptic feedback on iOS
-    if (navigator.vibrate) {
-      navigator.vibrate([100, 50, 100]);
-    }
-  } catch (e) {
-    console.log('Audio not available:', e);
-  }
-}
-
-function playBeep(startTime, duration, frequency) {
-  try {
-    const osc = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    
-    osc.connect(gain);
-    gain.connect(audioContext.destination);
-    
-    osc.frequency.value = frequency;
-    osc.type = 'sine';
-    
-    // Higher volume for iOS
-    gain.gain.setValueAtTime(0.5, startTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-    
-    osc.start(startTime);
-    osc.stop(startTime + duration);
-    console.log('Beep played at', startTime, 'frequency', frequency);
-  } catch (e) {
-    console.error('Beep error:', e);
-  }
+    audio.currentTime = 0;
+    const p1 = audio.play();
+    if (p1) p1.catch(() => {});
+    setTimeout(() => {
+      try { audio.currentTime = 0; const p2 = audio.play(); if (p2) p2.catch(() => {}); } catch(e) {}
+    }, 220);
+  } catch (e) {}
+  if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
 }
 
 // STATE
