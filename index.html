@@ -382,7 +382,7 @@
 
 <div class="audio-banner" id="audioBanner">
   <p>🔊 Tap to enable alarm sounds</p>
-  <button class="btn primary" onclick="unlockAudio()" style="font-size:11px;">Enable Sound</button>
+  <button class="btn primary" id="enableAudioBtn" style="font-size:11px;">Enable Sound</button>
 </div>
 
 <div class="progress-bar-wrap"><div class="progress-bar-fill" id="globalBar"></div></div>
@@ -497,14 +497,26 @@ const DATA = [
 let audioContext;
 let audioUnlocked = false;
 
+// Setup button listener
+document.addEventListener('DOMContentLoaded', function() {
+  const enableBtn = document.getElementById('enableAudioBtn');
+  if (enableBtn) {
+    enableBtn.addEventListener('click', unlockAudio);
+  }
+});
+
 function unlockAudio() {
   try {
+    console.log('unlockAudio called');
+    
     if (!audioContext) {
+      console.log('Creating AudioContext');
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
     
     // Resume audio context if suspended
     if (audioContext.state === 'suspended') {
+      console.log('Resuming suspended AudioContext');
       audioContext.resume().then(() => {
         console.log('AudioContext resumed');
       });
@@ -512,23 +524,34 @@ function unlockAudio() {
     
     // Play test beep to unlock audio on iOS
     const now = audioContext.currentTime;
-    playBeep(now, 0.1, 800);
+    console.log('Playing test beep at', now);
+    playBeep(now, 0.15, 800);
+    
+    // Haptic feedback
+    if (navigator.vibrate) {
+      console.log('Vibrating');
+      navigator.vibrate([100, 50, 100]);
+    }
     
     audioUnlocked = true;
+    console.log('Audio unlocked, audioUnlocked =', audioUnlocked);
     
     // Hide banner with animation
     const banner = document.getElementById('audioBanner');
-    banner.classList.remove('show');
-    banner.classList.add('hide');
+    if (banner) {
+      banner.classList.remove('show');
+      banner.classList.add('hide');
+      
+      // Remove from DOM after animation
+      setTimeout(() => {
+        banner.style.display = 'none';
+      }, 300);
+    }
     
-    // Remove from DOM after animation
-    setTimeout(() => {
-      banner.style.display = 'none';
-    }, 300);
-    
-    console.log('Audio unlocked!');
+    showToast('✅ Sound enabled!');
   } catch (e) {
     console.error('Failed to unlock audio:', e);
+    showToast('⚠ Sound setup failed');
   }
 }
 
@@ -542,7 +565,10 @@ function initAudioContext() {
 }
 
 function playAlarm(type = 'beep') {
-  if (!audioUnlocked) return;
+  if (!audioUnlocked) {
+    console.log('Audio not unlocked yet, skipping alarm');
+    return;
+  }
   
   try {
     initAudioContext();
@@ -584,8 +610,9 @@ function playBeep(startTime, duration, frequency) {
     
     osc.start(startTime);
     osc.stop(startTime + duration);
+    console.log('Beep played at', startTime, 'frequency', frequency);
   } catch (e) {
-    console.log('Beep error:', e);
+    console.error('Beep error:', e);
   }
 }
 
