@@ -485,6 +485,8 @@ const DATA = [
 // timer-triggered playback without further interaction.
 let audioUnlocked = false;
 let _audioCtx = null;
+let _firstStart = true;
+const _startAudio = new Audio('start.mp3');
 
 // Called from startStop() — must run inside a real user tap on iOS
 function _unlockAudioOnce() {
@@ -702,6 +704,11 @@ function updateSummary() {
 function startStop() {
   _unlockAudioOnce(); // unlock audio on first user tap (required by iOS)
   if(!state.running) {
+    // Play hype audio on the very first Start tap only
+    if(_firstStart) {
+      _firstStart = false;
+      try { _startAudio.currentTime = 0; _startAudio.play().catch(() => {}); } catch(e) {}
+    }
     if(!state.sessionStart) {
       state.sessionStart = Date.now() - state.sessionElapsed * 1000;
       state.sessionInterval = setInterval(() => {
@@ -802,6 +809,13 @@ function advanceExercise() {
   state.currentSet = 0;
   state.phase = 'work';
   state.timeLeft = currentEx().work;
+
+  // Pause — user must press Start to begin the next exercise
+  clearInterval(state.timerInterval);
+  state.running = false;
+  document.getElementById('btnStart').innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round"><polygon points="5,3 19,12 5,21"/></svg> Start';
+  document.getElementById('btnStart').className = 'btn primary';
+
   updateTimerPanel();
   buildList();
   updateSummary();
@@ -821,8 +835,7 @@ function skipPhase() {
   es.done = true;
   state.phase = 'work';
   state.timeLeft = 0;
-  advanceExercise();
-  if (state.running) runTimer();
+  advanceExercise(); // advanceExercise now always pauses — no runTimer() needed
 }
 
 function markSetDone() {
@@ -830,7 +843,7 @@ function markSetDone() {
   state.timeLeft = 0;
   playAlarm('beep');
   finishSet();
-  if(state.running) runTimer();
+  if(state.running) runTimer(); // only resumes if still within same exercise (finishSet didn't advance)
 }
 
 function jumpTo(bi, ei) {
@@ -860,6 +873,7 @@ function resetCurrent() {
 }
 
 function resetAll() {
+  _firstStart = true;
   clearInterval(state.timerInterval);
   clearInterval(state.sessionInterval);
   state = {
