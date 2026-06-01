@@ -123,10 +123,13 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 16px;
-    padding: 1.25rem 1.5rem 1rem;
+    padding: 1rem 1rem 1rem 1.25rem;
     margin-bottom: 0.5rem;
     position: relative;
     overflow: hidden;
+    display: flex;
+    gap: 0.75rem;
+    align-items: stretch;
   }
   .timer-panel::before {
     content: '';
@@ -137,35 +140,42 @@
     border-radius: 50%;
     pointer-events: none;
   }
-  .timer-block-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: var(--muted);
-    margin-bottom: 4px;
+  /* Left: all timer info */
+  .timer-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
   }
   .timer-ex-name {
     font-family: 'Bebas Neue', sans-serif;
-    font-size: 1.8rem;
+    font-size: 1.6rem;
     letter-spacing: 0.05em;
     color: var(--text);
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.1rem;
     line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .timer-set-info {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--muted);
-    margin-bottom: 1.25rem;
+    margin-bottom: 0.6rem;
   }
   .timer-display-row {
     display: flex;
-    align-items: flex-end;
-    gap: 1rem;
-    margin-bottom: 1rem;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+  }
+  .timer-left {
+    display: flex;
+    flex-direction: column;
   }
   .timer-big {
     font-family: 'Bebas Neue', sans-serif;
-    font-size: 5rem;
+    font-size: 6.5rem;
     line-height: 1;
     letter-spacing: 0.02em;
     transition: color 0.3s;
@@ -175,13 +185,14 @@
   .timer-big.done      { color: var(--muted); }
   .timer-big.countdown { color: var(--danger); }
   .timer-phase-badge {
-    padding: 4px 12px;
+    padding: 3px 10px;
     border-radius: 20px;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    margin-bottom: 10px;
+    margin-bottom: 4px;
+    align-self: flex-start;
   }
   .phase-work      { background: rgba(200,241,53,0.15); color: var(--accent); }
   .phase-rest      { background: rgba(241,192,53,0.15); color: var(--accent2); }
@@ -191,14 +202,13 @@
   /* Progress ring */
   .ring-wrap {
     position: relative;
-    width: 80px;
-    height: 80px;
+    width: 110px;
+    height: 110px;
     flex-shrink: 0;
-    margin-bottom: 10px;
   }
   .ring-svg { transform: rotate(-90deg); }
-  .ring-bg { fill: none; stroke: var(--border); stroke-width: 5; }
-  .ring-fg { fill: none; stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 0.5s linear; }
+  .ring-bg { fill: none; stroke: var(--border); stroke-width: 6; }
+  .ring-fg { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 0.5s linear; }
   .ring-label {
     position: absolute;
     inset: 0;
@@ -207,35 +217,37 @@
     align-items: center;
     justify-content: center;
     font-family: 'DM Mono', monospace;
-    font-size: 10px;
+    font-size: 11px;
     color: var(--muted);
-    line-height: 1.2;
+    line-height: 1.3;
   }
-  .ring-label strong { font-size: 13px; color: var(--text); }
+  .ring-label strong { font-size: 15px; color: var(--text); }
 
-  /* Controls */
-  .controls {
+  /* Right: vertical button column */
+  .controls-col {
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+    width: 64px;
   }
   .btn {
-    flex: 1;
-    min-width: 80px;
-    padding: 0.65rem 1rem;
+    padding: 0.6rem 0.5rem;
     border-radius: 8px;
     border: 1px solid var(--border);
     background: var(--surface2);
     color: var(--text);
     font-family: 'DM Sans', sans-serif;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 4px;
+    width: 100%;
+    flex: 1;
   }
   .btn:hover { border-color: var(--muted); background: #222; }
   .btn:active { transform: scale(0.97); }
@@ -408,30 +420,34 @@
 
   <!-- TIMER PANEL -->
   <div class="timer-panel" id="timerPanel">
-    <div class="timer-ex-name" id="tExName">Dead Hang</div>
-    <div class="timer-set-info" id="tSetInfo">Set 1 of 2 · 40s work · 20s rest</div>
-    <div class="timer-display-row">
-      <div>
-        <div class="timer-phase-badge phase-work" id="tPhaseBadge">Work</div>
-        <div class="timer-big work" id="tCountdown">40</div>
-      </div>
-      <div class="ring-wrap">
-        <svg class="ring-svg" viewBox="0 0 80 80" width="80" height="80">
-          <circle class="ring-bg" cx="40" cy="40" r="35"/>
-          <circle class="ring-fg" id="ringFg" cx="40" cy="40" r="35" stroke="#c8f135" stroke-dasharray="219.9" stroke-dashoffset="0"/>
-        </svg>
-        <div class="ring-label"><strong id="ringSet">1/2</strong>sets</div>
+    <!-- Left: timer info -->
+    <div class="timer-body">
+      <div class="timer-ex-name" id="tExName">Dead Hang</div>
+      <div class="timer-set-info" id="tSetInfo">Set 1 of 2 · 40s work · 20s rest</div>
+      <div class="timer-display-row">
+        <div class="timer-left">
+          <div class="timer-phase-badge phase-work" id="tPhaseBadge">Work</div>
+          <div class="timer-big work" id="tCountdown">40</div>
+        </div>
+        <div class="ring-wrap">
+          <svg class="ring-svg" viewBox="0 0 110 110" width="110" height="110">
+            <circle class="ring-bg" cx="55" cy="55" r="48"/>
+            <circle class="ring-fg" id="ringFg" cx="55" cy="55" r="48" stroke="#c8f135" stroke-dasharray="301.6" stroke-dashoffset="0"/>
+          </svg>
+          <div class="ring-label"><strong id="ringSet">1/2</strong>sets</div>
+        </div>
       </div>
     </div>
-    <div class="controls">
-      <button class="btn primary" id="btnStart" onclick="startStop()">
-        <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg> Start
-      </button>
+    <!-- Right: vertical buttons — Reset top, Done middle, Start bottom -->
+    <div class="controls-col">
       <button class="btn danger" onclick="resetCurrent()">
         <svg viewBox="0 0 24 24"><polyline points="1,4 1,10 7,10"/><path d="M3.51,15a9,9,0,1,0,.49-3"/></svg>
       </button>
       <button class="btn" onclick="markSetDone()">
         <svg viewBox="0 0 24 24"><polyline points="20,6 9,17 4,12"/></svg> Done
+      </button>
+      <button class="btn primary" id="btnStart" onclick="startStop()">
+        <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg> Start
       </button>
     </div>
   </div>
@@ -583,7 +599,7 @@ let state = {
 };
 state.blocks[0].open = true;
 
-const CIRCUMFERENCE = 2 * Math.PI * 35;
+const CIRCUMFERENCE = 2 * Math.PI * 48; // matches ring r=48 → 301.6
 
 // HELPERS
 function totalExercises() { return DATA.reduce((a,b) => a + b.exercises.length, 0); }
