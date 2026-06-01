@@ -401,7 +401,7 @@
 <!-- ALWAYS-VISIBLE TOP SECTION -->
 <div class="fixed-top">
   <div class="summary-strip">
-    <div class="sum-card"><div class="s-label">Done</div><div class="s-val" id="sumDone">0 / 15</div></div>
+    <div class="sum-card"><div class="s-label">Done</div><div class="s-val" id="sumDone">0/15</div></div>
     <div class="sum-card"><div class="s-label">Sets left</div><div class="s-val" id="sumSets">28</div></div>
     <div class="sum-card"><div class="s-label">Block</div><div class="s-val" id="sumBlock">1/5</div></div>
   </div>
@@ -464,14 +464,14 @@ const DATA = [
       { name:"Dead Hang", sets:2, work:40, rest:20, icon:"🧲", url:"https://www.youtube.com/results?search_query=dead+hang+exercise" },
       { name:"Scapular Pull-ups", sets:2, work:40, rest:20, icon:"🔼", url:"https://www.youtube.com/results?search_query=scapular+pull+ups" },
       { name:"Australian Rows", sets:2, work:40, rest:20, icon:"🚣", url:"https://www.youtube.com/results?search_query=australian+rows+exercise" },
-      { name:"Cable Wide Pull", sets:2, work:90, rest:20, icon:"🔗", url:"https://weighttraining.guide/exercises/cable-wide-grip-seated-row/" },
+      { name:"Cable Wide Pull", sets:2, work:90, rest:20, icon:"🔗", url:"https://weighttraining.guide/exercises/cable-wide-grip-upright-row/" },
     ]
   },
   { id:2, blockLabel:"Block 2 · Back + Biceps", blockColor:"#f1c035",
     exercises:[
       { name:"Pull-ups (Pronated)", sets:2, work:40, rest:20, icon:"💪", url:"https://www.youtube.com/results?search_query=pull+ups+pronated+grip" },
       { name:"Chin-ups (Supinated)", sets:2, work:40, rest:20, icon:"🤙", url:"https://www.youtube.com/results?search_query=chin+ups+supinated" },
-      { name:"Behind-the-neck Pull-up", sets:2, work:90, rest:20, icon:"🔙", url:"https://weighttraining.guide/exercises/behind-the-neck-pull-up/" },
+      { name:"Behind-the-neck Pull-up", sets:2, work:90, rest:20, icon:"🔙", url:"https://weighttraining.guide/exercises/behind-the-neck-lat-pull-down/" },
     ]
   },
   { id:3, blockLabel:"Block 3 · Chest + Triceps", blockColor:"#f16c35",
@@ -665,7 +665,6 @@ function buildList() {
       }
 
       row.innerHTML = `
-        <div class="ex-icon">${e.icon}</div>
         <div class="ex-info">
           <div class="ex-name">${e.name}</div>
           <div class="ex-meta">${e.sets}×${e.work}s · rest ${e.rest}s</div>
@@ -730,7 +729,7 @@ function updateCountdownDisplay() {
 function updateSummary() {
   const done = completedExercises();
   const total = totalExercises();
-  document.getElementById('sumDone').textContent = `${done} / ${total}`;
+  document.getElementById('sumDone').textContent = `${done}/${total}`;
   const setsLeft = totalSets() - completedSets();
   document.getElementById('sumSets').textContent = setsLeft;
   document.getElementById('sumBlock').textContent = `${state.currentBlockIdx+1}/5`;
@@ -894,7 +893,6 @@ function skipPhase() {
 function markSetDone() {
   clearInterval(state.timerInterval);
   state.timeLeft = 0;
-  playAlarm('beep');
   finishSet();
   if(state.running) runTimer(); // only resumes if still within same exercise (finishSet didn't advance)
 }
