@@ -343,9 +343,21 @@
     text-align: center;
     z-index: 1000;
     display: none;
+    animation: slideDown 0.3s ease;
   }
   .audio-banner.show {
     display: block;
+  }
+  .audio-banner.hide {
+    animation: slideUp 0.3s ease forwards;
+  }
+  @keyframes slideDown {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes slideUp {
+    from { transform: translateY(0); opacity: 1; }
+    to { transform: translateY(-100%); opacity: 0; }
   }
   .audio-banner p {
     font-size: 12px;
@@ -486,15 +498,38 @@ let audioContext;
 let audioUnlocked = false;
 
 function unlockAudio() {
-  if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  try {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    // Resume audio context if suspended
+    if (audioContext.state === 'suspended') {
+      audioContext.resume().then(() => {
+        console.log('AudioContext resumed');
+      });
+    }
+    
+    // Play test beep to unlock audio on iOS
+    const now = audioContext.currentTime;
+    playBeep(now, 0.1, 800);
+    
+    audioUnlocked = true;
+    
+    // Hide banner with animation
+    const banner = document.getElementById('audioBanner');
+    banner.classList.remove('show');
+    banner.classList.add('hide');
+    
+    // Remove from DOM after animation
+    setTimeout(() => {
+      banner.style.display = 'none';
+    }, 300);
+    
+    console.log('Audio unlocked!');
+  } catch (e) {
+    console.error('Failed to unlock audio:', e);
   }
-  
-  // Play test beep to unlock audio on iOS
-  playBeep(audioContext.currentTime, 0.1, 800);
-  
-  audioUnlocked = true;
-  document.getElementById('audioBanner').classList.remove('show');
 }
 
 function initAudioContext() {
