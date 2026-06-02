@@ -19,7 +19,7 @@
     --accent: #c8f135;
     --accent2: #f1c035;
     --text: #f0f0f0;
-    --muted: #666;
+    --muted: #aaa;
     --danger: #ff4444;
     --radius: 10px;
   }
@@ -651,8 +651,8 @@
     </div>
     <!-- Right: vertical buttons — Done top, Start bottom -->
     <div class="controls-col">
-      <button class="btn" onclick="markSetDone()">
-        <svg viewBox="0 0 24 24"><polyline points="20,6 9,17 4,12"/></svg> Done
+      <button class="btn" style="font-size:10px;letter-spacing:0.02em;" onclick="finishSession()">
+        <svg viewBox="0 0 24 24"><polyline points="20,6 9,17 4,12"/></svg> Finish
       </button>
       <button class="btn primary" id="btnStart" onclick="startStop()">
         <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg> Start
@@ -1291,6 +1291,18 @@ function resetAll() {
   updateSummary();
 }
 
+
+function finishSession() {
+  clearInterval(state.timerInterval);
+  clearInterval(state.sessionInterval);
+  state.running = false;
+  syncStartBtn('start');
+  _playCompleted();
+  exitFocus();
+  const cs = document.getElementById('completeScreen');
+  cs.classList.add('show');
+  document.getElementById('completeSub').textContent = 'Total time: ' + fmtClock(state.sessionElapsed);
+}
 
 // INIT
 state.timeLeft = currentEx().work;
