@@ -333,62 +333,176 @@
   .ex-link { font-size: 11px; color: var(--muted); text-decoration: none; flex-shrink: 0; padding: 4px 8px; border-radius: 5px; border: 1px solid var(--border); transition: all 0.15s; }
   .ex-link:hover { color: var(--accent); border-color: var(--accent); }
 
-  /* DRAG HANDLE */
-  .timer-handle {
+  /* FOCUS BUTTON on timer panel */
+  .btn-focus {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    transition: color 0.15s;
+    z-index: 2;
+  }
+  .btn-focus:hover { color: var(--text); }
+  .btn-focus svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* FOCUS SCREEN — full-screen timer overlay */
+  .focus-screen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    flex-direction: column;
+    z-index: 500;
+    padding: 0;
+  }
+  .focus-screen.show { display: flex; }
+
+  .focus-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem 0.5rem;
+    flex-shrink: 0;
+  }
+  .focus-block-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+  .btn-exit-focus {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    padding: 6px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+  }
+  .btn-exit-focus:hover { color: var(--text); border-color: var(--muted); }
+  .btn-exit-focus svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
+
+  .focus-ex-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.6rem;
+    letter-spacing: 0.05em;
+    color: var(--text);
+    text-align: center;
+    padding: 0 1.5rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  /* Big ring with countdown inside */
+  .focus-ring-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 1rem 0;
+  }
+  .focus-ring-wrap {
+    position: relative;
+    width: min(72vw, 300px);
+    height: min(72vw, 300px);
+  }
+  .focus-ring-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  .focus-ring-bg  { fill: none; stroke: var(--border); stroke-width: 8; }
+  .focus-ring-fg  { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 0.5s linear; }
+  .focus-ring-inner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+  }
+  .focus-phase-badge {
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .focus-count {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(5rem, 18vw, 8rem);
+    line-height: 1;
+    letter-spacing: 0.02em;
+    transition: color 0.3s;
+  }
+  .focus-set-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* Set dots in focus mode */
+  .focus-dots {
     display: flex;
     justify-content: center;
-    align-items: center;
-    padding: 6px 0 2px;
-    cursor: pointer;
-    touch-action: none;
-    user-select: none;
+    gap: 10px;
+    padding: 0.5rem 0 1rem;
+    flex-shrink: 0;
   }
-  .timer-handle-bar {
-    width: 36px;
-    height: 4px;
-    background: var(--border);
-    border-radius: 2px;
-    transition: background 0.2s;
+  .focus-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    transition: all 0.2s;
   }
-  .timer-handle:hover .timer-handle-bar { background: var(--muted); }
+  .focus-dot.done   { background: var(--accent); border-color: var(--accent); }
+  .focus-dot.active { border-color: var(--accent); background: rgba(200,241,53,0.3); }
 
-  /* EXPANDED TIMER STATE */
-  .scroll-area {
-    transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1),
-                opacity 0.35s ease;
-    max-height: 100vh;
-    opacity: 1;
+  /* Focus controls — 3 large buttons */
+  .focus-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    padding: 0 1.25rem 2rem;
+    flex-shrink: 0;
   }
-  body.timer-expanded .scroll-area {
-    max-height: 0 !important;
-    opacity: 0;
-    overflow: hidden;
-    flex: 0;
-  }
-  body.timer-expanded .timer-panel {
-    padding-bottom: 1.5rem;
-  }
-  body.timer-expanded .timer-big {
-    font-size: 11rem;
-  }
-  body.timer-expanded .ring-wrap {
-    width: 180px;
-    height: 180px;
-  }
-  body.timer-expanded .timer-ex-name {
-    font-size: 2.2rem;
-  }
-  body.timer-expanded .timer-display-row {
-    gap: 1.25rem;
+  .focus-btn {
+    padding: 1rem 0.5rem;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
+    gap: 6px;
+    -webkit-tap-highlight-color: transparent;
   }
-  body.timer-expanded .controls-col {
-    width: 72px;
-  }
-  body.timer-expanded .timer-handle-bar {
-    width: 52px;
-    background: var(--muted);
-  }
+  .focus-btn:active { transform: scale(0.96); }
+  .focus-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .focus-btn.primary { background: var(--accent); color: #0a0a0a; border-color: var(--accent); font-weight: 700; }
+  .focus-btn.danger  { border-color: var(--danger); color: var(--danger); }
 
   /* COMPLETE SCREEN */
   .complete-screen {
@@ -506,10 +620,50 @@
         <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg> Start
       </button>
     </div>
+    <!-- Focus mode toggle -->
+    <button class="btn-focus" onclick="enterFocus()" title="Full screen">
+      <svg viewBox="0 0 24 24"><polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+    </button>
   </div>
-  <!-- Drag handle — swipe down to expand, swipe up / tap to collapse -->
-  <div class="timer-handle" id="timerHandle">
-    <div class="timer-handle-bar"></div>
+</div>
+
+<!-- FOCUS SCREEN -->
+<div class="focus-screen" id="focusScreen">
+  <div class="focus-topbar">
+    <span class="focus-block-label" id="fBlockLabel">Block 1 · Warm-up</span>
+    <button class="btn-exit-focus" onclick="exitFocus()">
+      <svg viewBox="0 0 24 24"><polyline points="9,15 3,21 3,15"/><polyline points="15,9 21,3 21,9"/><line x1="3" y1="21" x2="21" y2="3"/></svg>
+      Back
+    </button>
+  </div>
+  <div class="focus-ex-name" id="fExName">Dead Hang</div>
+  <div class="focus-ring-area">
+    <div class="focus-ring-wrap">
+      <svg class="focus-ring-svg" viewBox="0 0 240 240">
+        <circle class="focus-ring-bg" cx="120" cy="120" r="106"/>
+        <circle class="focus-ring-fg" id="focusRingFg" cx="120" cy="120" r="106" stroke="#c8f135" stroke-dasharray="666" stroke-dashoffset="0"/>
+      </svg>
+      <div class="focus-ring-inner">
+        <div class="focus-phase-badge phase-work" id="fPhaseBadge">Work</div>
+        <div class="focus-count work" id="fCountdown">40</div>
+        <div class="focus-set-label" id="fSetLabel">Set 1/2</div>
+      </div>
+    </div>
+  </div>
+  <div class="focus-dots" id="fDots"></div>
+  <div class="focus-controls">
+    <button class="focus-btn danger" onclick="resetCurrent()">
+      <svg viewBox="0 0 24 24"><polyline points="1,4 1,10 7,10"/><path d="M3.51,15a9,9,0,1,0,.49-3"/></svg>
+      Reset
+    </button>
+    <button class="focus-btn" onclick="markSetDone()">
+      <svg viewBox="0 0 24 24"><polyline points="20,6 9,17 4,12"/></svg>
+      Done
+    </button>
+    <button class="focus-btn primary" id="fBtnStart" onclick="startStop()">
+      <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+      Start
+    </button>
   </div>
 </div>
 
@@ -761,44 +915,95 @@ function buildList() {
   });
 }
 
+const FOCUS_CIRCUMFERENCE = 2 * Math.PI * 106; // focus ring r=106 ≈ 666
+
 function updateTimerPanel() {
   const b = DATA[state.currentBlockIdx];
   const e = b.exercises[state.currentExIdx];
-  const es = currentExState();
-  document.getElementById('tExName').textContent = e.name;
-document.getElementById('ringSet').textContent = `${state.currentSet+1}/${e.sets}`;
+  document.getElementById('tExName').textContent    = e.name;
+  document.getElementById('fExName').textContent    = e.name;
+  document.getElementById('fBlockLabel').textContent = b.blockLabel;
+  document.getElementById('ringSet').textContent    = `${state.currentSet+1}/${e.sets}`;
+  document.getElementById('fSetLabel').textContent  = `Set ${state.currentSet+1}/${e.sets}`;
+  // Focus set dots
+  const dots = document.getElementById('fDots');
+  dots.innerHTML = '';
+  for(let s=0; s<e.sets; s++) {
+    const d = document.createElement('div');
+    const isCur = state.currentBlockIdx === state.currentBlockIdx; // always same ex
+    const cls = s < (currentExState().setsCompleted) ? 'done'
+              : (s === state.currentSet ? 'active' : '');
+    d.className = `focus-dot ${cls}`;
+    dots.appendChild(d);
+  }
   updateCountdownDisplay();
 }
 
 function updateCountdownDisplay() {
   const e = currentEx();
-  const total = state.phase === 'work' ? e.work : e.rest;
+  const total = state.phase === 'countdown' ? 5
+              : state.phase === 'work'       ? e.work : e.rest;
   const left = state.timeLeft;
   const pct = total > 0 ? left / total : 0;
-  const offset = CIRCUMFERENCE * (1 - pct);
 
-  const cd = document.getElementById('tCountdown');
+  // Main panel
+  const cd    = document.getElementById('tCountdown');
   const badge = document.getElementById('tPhaseBadge');
-  const ring = document.getElementById('ringFg');
+  const ring  = document.getElementById('ringFg');
+  // Focus panel
+  const fcd    = document.getElementById('fCountdown');
+  const fbadge = document.getElementById('fPhaseBadge');
+  const fring  = document.getElementById('focusRingFg');
 
-  cd.textContent = left;
+  let color, badgeClass, badgeText;
   if(state.phase === 'countdown') {
-    cd.className = 'timer-big countdown';
-    badge.className = 'timer-phase-badge phase-countdown';
-    badge.textContent = 'Get Ready';
-    ring.style.stroke = '#ff4444';
+    color = '#ff4444'; badgeClass = 'phase-countdown'; badgeText = 'Get Ready';
+    cd.className  = 'timer-big countdown';
+    fcd.className = 'focus-count countdown';
   } else if(state.phase === 'work') {
-    cd.className = 'timer-big work';
-    badge.className = 'timer-phase-badge phase-work';
-    badge.textContent = 'Work';
-    ring.style.stroke = '#c8f135';
+    color = '#c8f135'; badgeClass = 'phase-work'; badgeText = 'Work';
+    cd.className  = 'timer-big work';
+    fcd.className = 'focus-count work';
   } else {
-    cd.className = 'timer-big rest';
-    badge.className = 'timer-phase-badge phase-rest';
-    badge.textContent = 'Rest';
-    ring.style.stroke = '#f1c035';
+    color = '#f1c035'; badgeClass = 'phase-rest'; badgeText = 'Rest';
+    cd.className  = 'timer-big rest';
+    fcd.className = 'focus-count rest';
   }
-  ring.style.strokeDashoffset = offset;
+
+  cd.textContent = fcd.textContent = left;
+  badge.className  = `timer-phase-badge ${badgeClass}`;
+  fbadge.className = `focus-phase-badge ${badgeClass}`;
+  badge.textContent = fbadge.textContent = badgeText;
+  ring.style.stroke  = fring.style.stroke  = color;
+  ring.style.strokeDashoffset  = CIRCUMFERENCE      * (1 - pct);
+  fring.style.strokeDashoffset = FOCUS_CIRCUMFERENCE * (1 - pct);
+}
+
+// FOCUS MODE
+function enterFocus() {
+  document.getElementById('focusScreen').classList.add('show');
+  updateTimerPanel();
+}
+function exitFocus() {
+  document.getElementById('focusScreen').classList.remove('show');
+}
+
+// Keep both Start buttons in sync
+function syncStartBtn(type) {
+  const PAUSE_SVG  = '<svg viewBox="0 0 24 24"><line x1="6" y1="4" x2="6" y2="20"/><line x1="18" y1="4" x2="18" y2="20"/></svg>';
+  const PLAY_SVG   = '<svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>';
+  const b1 = document.getElementById('btnStart');
+  const b2 = document.getElementById('fBtnStart');
+  if (type === 'pause') {
+    if(b1) { b1.innerHTML = PAUSE_SVG + ' Pause';  b1.className = 'btn primary'; }
+    if(b2) { b2.innerHTML = PAUSE_SVG + ' Pause';  b2.className = 'focus-btn primary'; }
+  } else if (type === 'resume') {
+    if(b1) { b1.innerHTML = PLAY_SVG  + ' Resume'; b1.className = 'btn primary'; }
+    if(b2) { b2.innerHTML = PLAY_SVG  + ' Resume'; b2.className = 'focus-btn primary'; }
+  } else {
+    if(b1) { b1.innerHTML = PLAY_SVG  + ' Start';  b1.className = 'btn primary'; }
+    if(b2) { b2.innerHTML = PLAY_SVG  + ' Start';  b2.className = 'focus-btn primary'; }
+  }
 }
 
 function updateSummary() {
@@ -829,8 +1034,7 @@ function startStop() {
       }, 1000);
     }
     state.running = true;
-    document.getElementById('btnStart').innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round"><line x1="6" y1="4" x2="6" y2="20"/><line x1="18" y1="4" x2="18" y2="20"/></svg> Pause';
-    document.getElementById('btnStart').className = 'btn primary';
+    syncStartBtn('pause');
     runTimer(); // runTimer always starts with 5s countdown
   } else {
     pauseTimer();
@@ -840,8 +1044,7 @@ function startStop() {
 function pauseTimer() {
   state.running = false;
   clearInterval(state.timerInterval);
-  document.getElementById('btnStart').innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round"><polygon points="5,3 19,12 5,21"/></svg> Resume';
-  document.getElementById('btnStart').className = 'btn primary';
+  syncStartBtn('resume');
 }
 
 function runTimer() {
@@ -874,11 +1077,14 @@ function runTimer() {
         const _es = currentExState();
         const _e  = currentEx();
         const _lastSet = (_es.setsCompleted + 1) >= _e.sets;
-        if(_lastSet) {
-          _playMoveon();
-        } else {
-          playAlarm('beep');
+        const _isLastEx = state.currentBlockIdx === DATA.length - 1 &&
+                          state.currentExIdx === DATA[state.currentBlockIdx].exercises.length - 1;
+        if(_lastSet && !_isLastEx) {
+          _playMoveon(); // exercise done, more to come
+        } else if(!_lastSet) {
+          playAlarm('beep'); // mid-exercise set complete
         }
+        // if _lastSet && _isLastEx: completed.mp3 plays in advanceExercise
         finishSet();
       }
     }
@@ -940,8 +1146,7 @@ function advanceExercise() {
   // Pause — user must press Start to begin the next exercise
   clearInterval(state.timerInterval);
   state.running = false;
-  document.getElementById('btnStart').innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round"><polygon points="5,3 19,12 5,21"/></svg> Start';
-  document.getElementById('btnStart').className = 'btn primary';
+  syncStartBtn('start');
 
   updateTimerPanel();
   buildList();
@@ -1021,28 +1226,6 @@ function resetAll() {
   updateSummary();
 }
 
-// DRAG-TO-EXPAND TIMER PANEL
-(function() {
-  const handle = document.getElementById('timerHandle');
-  let startY = 0, startTime = 0;
-
-  function onStart(y) { startY = y; startTime = Date.now(); }
-  function onEnd(y) {
-    const dy = y - startY;
-    const dt = Date.now() - startTime;
-    const isSwipe = dt < 400;
-    const expanded = document.body.classList.contains('timer-expanded');
-    if (!expanded && isSwipe && dy > 40)  document.body.classList.add('timer-expanded');
-    if ( expanded && isSwipe && dy < -40) document.body.classList.remove('timer-expanded');
-    // Tap to toggle
-    if (Math.abs(dy) < 10 && dt < 250) document.body.classList.toggle('timer-expanded');
-  }
-
-  handle.addEventListener('touchstart', e => onStart(e.touches[0].clientY), {passive:true});
-  handle.addEventListener('touchend',   e => onEnd(e.changedTouches[0].clientY), {passive:true});
-  handle.addEventListener('mousedown',  e => onStart(e.clientY));
-  window.addEventListener('mouseup',    e => { if (startY) { onEnd(e.clientY); startY = 0; } });
-})();
 
 // INIT
 state.timeLeft = currentEx().work;
