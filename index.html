@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Workout Tracker</title>
+<title>Mamey W.O.</title>
 <link rel="icon" type="image/png" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Workout">
+<meta name="apple-mobile-web-app-title" content="Mamey">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -461,23 +461,6 @@
     margin-top: 2px;
   }
 
-  /* Set dots in focus mode */
-  .focus-dots {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    padding: 0.5rem 0 1rem;
-    flex-shrink: 0;
-  }
-  .focus-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    border: 2px solid var(--border);
-    transition: all 0.2s;
-  }
-  .focus-dot.done   { background: var(--accent); border-color: var(--accent); }
-  .focus-dot.active { border-color: var(--accent); background: rgba(200,241,53,0.3); }
 
   /* Focus controls — 3 large buttons */
   .focus-controls {
@@ -635,7 +618,7 @@
 <div class="progress-bar-wrap"><div class="progress-bar-fill" id="globalBar"></div></div>
 
 <header>
-  <div class="logo">Workout</div>
+  <div class="logo">Mamey W.O.</div>
   <div class="session-clock">Session <span id="sessionTimer">00:00</span></div>
 </header>
 
@@ -705,7 +688,6 @@
       </div>
     </div>
   </div>
-  <div class="focus-dots" id="fDots"></div>
   <div class="focus-controls">
     <button class="focus-btn danger" onclick="resetCurrent()">
       <svg viewBox="0 0 24 24"><polyline points="1,4 1,10 7,10"/><path d="M3.51,15a9,9,0,1,0,.49-3"/></svg>
@@ -995,17 +977,6 @@ function updateTimerPanel() {
   document.getElementById('fBlockLabel').textContent = b.blockLabel;
   document.getElementById('ringSet').textContent    = `${state.currentSet+1}/${e.sets}`;
   document.getElementById('fSetLabel').textContent  = `Set ${state.currentSet+1}/${e.sets}`;
-  // Focus set dots
-  const dots = document.getElementById('fDots');
-  dots.innerHTML = '';
-  for(let s=0; s<e.sets; s++) {
-    const d = document.createElement('div');
-    const isCur = state.currentBlockIdx === state.currentBlockIdx; // always same ex
-    const cls = s < (currentExState().setsCompleted) ? 'done'
-              : (s === state.currentSet ? 'active' : '');
-    d.className = `focus-dot ${cls}`;
-    dots.appendChild(d);
-  }
   updateCountdownDisplay();
 }
 
@@ -1221,6 +1192,7 @@ function advanceExercise() {
       clearInterval(state.timerInterval);
       clearInterval(state.sessionInterval);
       state.running = false;
+      syncStartBtn('start'); // reset button back to Start
       _playCompleted();
       exitFocus(); // close focus screen if open
       const cs = document.getElementById('completeScreen');
