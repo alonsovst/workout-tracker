@@ -778,6 +778,8 @@ const _startAudio = new Audio('start.mp3'); // played in user-gesture context, s
 let _moveonBuffer    = null;
 let _completedBuffer = null;
 let _restBuffer      = null;
+let _set1Buffer      = null;
+let _set2Buffer      = null;
 
 // Called from startStop() — must run inside a real user tap on iOS
 function _unlockAudioOnce() {
@@ -797,6 +799,8 @@ function _unlockAudioOnce() {
     fetch('moveon.mp3').then(r => r.arrayBuffer()).then(ab => _audioCtx.decodeAudioData(ab)).then(buf => { _moveonBuffer = buf; }).catch(() => {});
     fetch('completed.mp3').then(r => r.arrayBuffer()).then(ab => _audioCtx.decodeAudioData(ab)).then(buf => { _completedBuffer = buf; }).catch(() => {});
     fetch('rest.mp3').then(r => r.arrayBuffer()).then(ab => _audioCtx.decodeAudioData(ab)).then(buf => { _restBuffer = buf; }).catch(() => {});
+    fetch('set1.mp3').then(r => r.arrayBuffer()).then(ab => _audioCtx.decodeAudioData(ab)).then(buf => { _set1Buffer = buf; }).catch(() => {});
+    fetch('set2.mp3').then(r => r.arrayBuffer()).then(ab => _audioCtx.decodeAudioData(ab)).then(buf => { _set2Buffer = buf; }).catch(() => {});
   } catch(e) {}
 }
 
@@ -812,6 +816,7 @@ function _playBuffer(buf) {
 function _playMoveon()    { _playBuffer(_moveonBuffer); }
 function _playCompleted() { _playBuffer(_completedBuffer); }
 function _playRest()      { _playBuffer(_restBuffer); }
+function _playSetAudio()  { _playBuffer(state.currentSet === 0 ? _set1Buffer : _set2Buffer); }
 
 function _playTone(hz, durSec) {
   if (!_audioCtx) return;
@@ -1125,10 +1130,11 @@ function runTimer() {
     updateCountdownDisplay();
     if(state.timeLeft <= 0) {
       if(state.phase === 'countdown') {
-        // Countdown done — begin work, fire chime to signal timer has started
+        // Countdown done — begin work
         state.phase = 'work';
         state.timeLeft = currentEx().work;
         playAlarm('beep');
+        _playSetAudio(); // play "set 1" or "set 2" cue
         updateCountdownDisplay();
       } else if(state.phase === 'work') {
         // Move to rest
