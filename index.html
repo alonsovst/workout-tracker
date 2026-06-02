@@ -375,10 +375,10 @@
     font-size: 14px;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: #444; /* lighter than --muted (#666) */
+    color: #aaa; /* bright enough to read clearly */
     text-align: center;
     padding: 0 1.5rem 0.4rem;
-    margin-top: 1rem; /* double the spacing below exercise name */
+    margin-top: 1rem;
     flex-shrink: 0;
   }
   .btn-exit-focus {
@@ -549,25 +549,25 @@
     line-height: 1.1;
   }
   .toast-close {
-    position: absolute;
-    top: 1.25rem;
-    right: 1.25rem;
-    background: rgba(0,0,0,0.15);
+    position: static; /* flows below the message */
+    margin-top: 1.25rem;
+    background: rgba(0,0,0,0.18);
     border: none;
     border-radius: 50%;
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #0a0a0a;
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 700;
     line-height: 1;
     transition: background 0.15s;
+    flex-shrink: 0;
   }
-  .toast-close:hover { background: rgba(0,0,0,0.25); }
+  .toast-close:hover { background: rgba(0,0,0,0.3); }
 
   /* AUDIO UNLOCK BANNER */
   .audio-banner {
@@ -716,8 +716,8 @@
 </div>
 
 <div class="toast" id="toast">
-  <button class="toast-close" onclick="dismissToast()">✕</button>
   <div class="toast-msg" id="toastMsg"></div>
+  <button class="toast-close" onclick="dismissToast()">✕</button>
 </div>
 
 <script>
@@ -879,12 +879,13 @@ function currentEx() { return DATA[state.currentBlockIdx].exercises[state.curren
 function currentExState() { return state.blocks[state.currentBlockIdx].exercises[state.currentExIdx]; }
 
 let _toastTimer = null;
+// Only call this for exercise completion — not for countdowns, resets, etc.
 function showToast(msg) {
   document.getElementById('toastMsg').textContent = msg;
   const t = document.getElementById('toast');
   t.classList.add('show');
   clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(dismissToast, 3000);
+  _toastTimer = setTimeout(dismissToast, 2000);
 }
 function dismissToast() {
   document.getElementById('toast').classList.remove('show');
@@ -1018,13 +1019,34 @@ function updateCountdownDisplay() {
   fring.style.strokeDashoffset = FOCUS_CIRCUMFERENCE * (1 - pct);
 }
 
-// FOCUS MODE
+// FOCUS MODE + WAKE LOCK
+let _wakeLock = null;
+async function _requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      _wakeLock = await navigator.wakeLock.request('screen');
+    }
+  } catch(e) {}
+}
+function _releaseWakeLock() {
+  if (_wakeLock) { _wakeLock.release(); _wakeLock = null; }
+}
+// Re-acquire if page becomes visible again (iOS releases on background)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' &&
+      document.getElementById('focusScreen').classList.contains('show')) {
+    _requestWakeLock();
+  }
+});
+
 function enterFocus() {
   document.getElementById('focusScreen').classList.add('show');
   updateTimerPanel();
+  _requestWakeLock();
 }
 function exitFocus() {
   document.getElementById('focusScreen').classList.remove('show');
+  _releaseWakeLock();
 }
 
 // Keep both Start buttons in sync
@@ -1146,7 +1168,7 @@ function finishSet() {
     updateTimerPanel();
     buildList();
     updateSummary();
-    showToast(`Set ${state.currentSet+1} — go!`);
+    // no toast for mid-exercise set transitions
   }
 }
 
@@ -1228,7 +1250,7 @@ function jumpTo(bi, ei) {
   buildList();
   updateSummary();
   document.getElementById('btnStart').innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round"><polygon points="5,3 19,12 5,21"/></svg> Start';
-  showToast(`Jumped to ${DATA[bi].exercises[ei].name}`);
+  // no toast for manual jumps
 }
 
 function resetCurrent() {
@@ -1238,7 +1260,7 @@ function resetCurrent() {
   state.timeLeft = currentEx().work;
   document.getElementById('btnStart').innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round"><polygon points="5,3 19,12 5,21"/></svg> Start';
   updateCountdownDisplay();
-  showToast('Timer reset');
+  // no toast for timer reset
 }
 
 function resetAll() {
