@@ -457,7 +457,7 @@
   .focus-set-label {
     font-family: 'DM Mono', monospace;
     font-size: 17px;
-    color: #444; /* lighter than --muted (#666) */
+    color: #aaa; /* same as block label */
     margin-top: 2px;
   }
 
@@ -510,17 +510,42 @@
   .focus-btn.primary { background: var(--accent); color: #0a0a0a; border-color: var(--accent); font-weight: 700; }
   .focus-btn.danger  { border-color: var(--danger); color: var(--danger); }
 
-  /* COMPLETE SCREEN */
+  /* COMPLETE SCREEN — full-screen overlay */
   .complete-screen {
     display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 600;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     text-align: center;
-    padding: 3rem 1rem;
+    padding: 2rem 1.5rem;
   }
-  .complete-screen.show { display: block; }
+  .complete-screen.show { display: flex; }
+  .complete-close {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 18px;
+    transition: all 0.15s;
+  }
+  .complete-close:hover { color: var(--text); border-color: var(--muted); }
   .complete-trophy { font-size: 4rem; margin-bottom: 1rem; }
-  .complete-title { font-family: 'Bebas Neue', sans-serif; font-size: 3rem; letter-spacing: 0.05em; color: var(--accent); margin-bottom: 0.5rem; }
+  .complete-title { font-family: 'Bebas Neue', sans-serif; font-size: 3.5rem; letter-spacing: 0.05em; color: var(--accent); margin-bottom: 0.5rem; }
   .complete-sub { color: var(--muted); font-size: 14px; margin-bottom: 2rem; }
-  .complete-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; max-width: 400px; margin: 0 auto 2rem; }
+  .complete-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; max-width: 400px; margin: 0 auto 2rem; width: 100%; }
 
   /* TOAST */
   /* FULL-SCREEN TOAST */
@@ -697,22 +722,23 @@
   </div>
 </div>
 
+<!-- COMPLETE SCREEN — full-screen overlay -->
+<div class="complete-screen" id="completeScreen">
+  <button class="complete-close" onclick="resetAll()">✕</button>
+  <div class="complete-trophy">🏋️</div>
+  <div class="complete-title">Sesión Completa</div>
+  <div class="complete-sub" id="completeSub">Total time: —</div>
+  <div class="complete-stats">
+    <div class="sum-card"><div class="s-label">Exercises</div><div class="s-val">15</div></div>
+    <div class="sum-card"><div class="s-label">Sets</div><div class="s-val">28</div></div>
+    <div class="sum-card"><div class="s-label">Blocks</div><div class="s-val">5</div></div>
+  </div>
+</div>
+
 <!-- SCROLLABLE EXERCISE LIST -->
 <div class="scroll-area">
   <div id="blockList"></div>
 
-  <!-- COMPLETE SCREEN -->
-  <div class="complete-screen" id="completeScreen">
-    <div class="complete-trophy">🏋️</div>
-    <div class="complete-title">Sesión Completa</div>
-    <div class="complete-sub" id="completeSub">Tiempo total: —</div>
-    <div class="complete-stats">
-      <div class="sum-card"><div class="s-label">Ejercicios</div><div class="s-val">15</div></div>
-      <div class="sum-card"><div class="s-label">Series</div><div class="s-val">28</div></div>
-      <div class="sum-card"><div class="s-label">Bloques</div><div class="s-val">5</div></div>
-    </div>
-    <button class="btn primary" style="max-width:200px; margin:0 auto;" onclick="resetAll()">Nueva Sesión</button>
-  </div>
 </div>
 
 <div class="toast" id="toast">
@@ -767,8 +793,9 @@ let _audioCtx = null;
 let _firstStart = true;
 let _isFirstExerciseStart = false;
 const _startAudio = new Audio('start.mp3'); // played in user-gesture context, so regular Audio is fine
-let _moveonBuffer    = null; // decoded via AudioContext so it can fire from the timer
+let _moveonBuffer    = null;
 let _completedBuffer = null;
+let _restBuffer      = null;
 
 // Called from startStop() — must run inside a real user tap on iOS
 function _unlockAudioOnce() {
@@ -787,6 +814,7 @@ function _unlockAudioOnce() {
     // Decode MP3s via AudioContext so they can fire from setInterval (iOS requirement)
     fetch('moveon.mp3').then(r => r.arrayBuffer()).then(ab => _audioCtx.decodeAudioData(ab)).then(buf => { _moveonBuffer = buf; }).catch(() => {});
     fetch('completed.mp3').then(r => r.arrayBuffer()).then(ab => _audioCtx.decodeAudioData(ab)).then(buf => { _completedBuffer = buf; }).catch(() => {});
+    fetch('rest.mp3').then(r => r.arrayBuffer()).then(ab => _audioCtx.decodeAudioData(ab)).then(buf => { _restBuffer = buf; }).catch(() => {});
   } catch(e) {}
 }
 
@@ -801,6 +829,7 @@ function _playBuffer(buf) {
 }
 function _playMoveon()    { _playBuffer(_moveonBuffer); }
 function _playCompleted() { _playBuffer(_completedBuffer); }
+function _playRest()      { _playBuffer(_restBuffer); }
 
 function _playTone(hz, durSec) {
   if (!_audioCtx) return;
@@ -830,6 +859,7 @@ function playAlarm(type = 'beep') {
 // STATE
 let state = {
   running: false,
+  freshStart: true,   // true = play countdown when Start pressed; false = resume in place
   sessionStart: null,
   sessionElapsed: 0,
   sessionInterval: null,
@@ -1110,9 +1140,12 @@ function pauseTimer() {
 
 function runTimer() {
   clearInterval(state.timerInterval);
-  // Always start with a 5-second get-ready countdown
-  state.phase = 'countdown';
-  state.timeLeft = 5;
+  // Only start the 5s countdown on fresh starts; resumes continue from current state
+  if (state.freshStart) {
+    state.freshStart = false;
+    state.phase = 'countdown';
+    state.timeLeft = 5;
+  }
   updateCountdownDisplay();
 
   state.timerInterval = setInterval(() => {
@@ -1130,7 +1163,7 @@ function runTimer() {
         // Move to rest
         state.phase = 'rest';
         state.timeLeft = currentEx().rest;
-        playAlarm('rest');
+        _playRest();
         updateCountdownDisplay();
       } else {
         // Set complete — check if this finishes the exercise before playing sound
@@ -1189,7 +1222,7 @@ function advanceExercise() {
       clearInterval(state.sessionInterval);
       state.running = false;
       _playCompleted();
-      document.querySelector('.fixed-top').style.display = 'none';
+      exitFocus(); // close focus screen if open
       const cs = document.getElementById('completeScreen');
       cs.classList.add('show');
       document.getElementById('completeSub').textContent = 'Total time: ' + fmtClock(state.sessionElapsed);
@@ -1202,6 +1235,7 @@ function advanceExercise() {
   state.currentSet = 0;
   state.phase = 'work';
   state.timeLeft = currentEx().work;
+  state.freshStart = true; // next Start press will run the countdown
 
   // Pause — user must press Start to begin the next exercise
   clearInterval(state.timerInterval);
@@ -1245,12 +1279,12 @@ function jumpTo(bi, ei) {
   state.currentSet = state.blocks[bi].exercises[ei].setsCompleted;
   state.phase = 'work';
   state.timeLeft = DATA[bi].exercises[ei].work;
+  state.freshStart = true;
   state.blocks[bi].open = true;
   updateTimerPanel();
   buildList();
   updateSummary();
-  document.getElementById('btnStart').innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round"><polygon points="5,3 19,12 5,21"/></svg> Start';
-  // no toast for manual jumps
+  syncStartBtn('start');
 }
 
 function resetCurrent() {
@@ -1258,9 +1292,9 @@ function resetCurrent() {
   state.running = false;
   state.phase = 'work';
   state.timeLeft = currentEx().work;
-  document.getElementById('btnStart').innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round"><polygon points="5,3 19,12 5,21"/></svg> Start';
+  state.freshStart = true;
+  syncStartBtn('start');
   updateCountdownDisplay();
-  // no toast for timer reset
 }
 
 function resetAll() {
@@ -1269,14 +1303,13 @@ function resetAll() {
   clearInterval(state.timerInterval);
   clearInterval(state.sessionInterval);
   state = {
-    running: false, sessionStart: null, sessionElapsed: 0,
+    running: false, freshStart: true, sessionStart: null, sessionElapsed: 0,
     sessionInterval: null, currentBlockIdx: 0, currentExIdx: 0,
     currentSet: 0, phase: 'work', timeLeft: 0,
     timerInterval: null,
     blocks: DATA.map(b => ({ open: false, exercises: b.exercises.map(e => ({ setsCompleted: 0, done: false })) }))
   };
   state.blocks[0].open = true;
-  document.querySelector('.fixed-top').style.display = '';
   document.getElementById('completeScreen').classList.remove('show');
   document.getElementById('sessionTimer').textContent = '00:00';
   document.getElementById('btnStart').innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round"><polygon points="5,3 19,12 5,21"/></svg> Start';
