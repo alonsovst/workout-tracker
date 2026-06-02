@@ -230,9 +230,12 @@
     gap: 6px;
     flex-shrink: 0;
     width: 64px;
+    justify-content: center; /* vertically center the buttons */
   }
   .btn {
-    padding: 0.6rem 0.5rem;
+    padding: 0.3rem 0.5rem;
+    height: 36px; /* explicit half-height */
+    flex: 0 0 36px;
     border-radius: 8px;
     border: 1px solid var(--border);
     background: var(--surface2);
@@ -247,7 +250,6 @@
     justify-content: center;
     gap: 4px;
     width: 100%;
-    flex: 1;
   }
   .btn:hover { border-color: var(--muted); background: #222; }
   .btn:active { transform: scale(0.97); }
@@ -370,12 +372,13 @@
     flex-shrink: 0;
   }
   .focus-block-label {
-    font-size: 14px; /* 11px × 1.3 ≈ 30% larger */
+    font-size: 14px;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: var(--muted);
+    color: #444; /* lighter than --muted (#666) */
     text-align: center;
     padding: 0 1.5rem 0.4rem;
+    margin-top: 1rem; /* double the spacing below exercise name */
     flex-shrink: 0;
   }
   .btn-exit-focus {
@@ -453,8 +456,8 @@
   }
   .focus-set-label {
     font-family: 'DM Mono', monospace;
-    font-size: 17px; /* 13px × 1.3 ≈ 30% larger */
-    color: var(--muted);
+    font-size: 17px;
+    color: #444; /* lighter than --muted (#666) */
     margin-top: 2px;
   }
 
@@ -1106,7 +1109,6 @@ function runTimer() {
         state.phase = 'rest';
         state.timeLeft = currentEx().rest;
         playAlarm('rest');
-        showToast('✅ Rest time!');
         updateCountdownDisplay();
       } else {
         // Set complete — check if this finishes the exercise before playing sound
