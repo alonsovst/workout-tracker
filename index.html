@@ -319,8 +319,8 @@
   }
   .ex-row.done .ex-icon { background: rgba(200,241,53,0.1); border-color: rgba(200,241,53,0.2); }
   .ex-info { flex: 1; min-width: 0; }
-  .ex-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ex-meta { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 1px; }
+  .ex-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ex-meta { font-size: 13px; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 3px; }
   .ex-sets-dots { display: flex; gap: 4px; flex-shrink: 0; }
   .set-dot {
     width: 8px; height: 8px;
@@ -332,6 +332,63 @@
   .set-dot.active { border-color: var(--accent); background: rgba(200,241,53,0.3); }
   .ex-link { font-size: 11px; color: var(--muted); text-decoration: none; flex-shrink: 0; padding: 4px 8px; border-radius: 5px; border: 1px solid var(--border); transition: all 0.15s; }
   .ex-link:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* DRAG HANDLE */
+  .timer-handle {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 6px 0 2px;
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+  }
+  .timer-handle-bar {
+    width: 36px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    transition: background 0.2s;
+  }
+  .timer-handle:hover .timer-handle-bar { background: var(--muted); }
+
+  /* EXPANDED TIMER STATE */
+  .scroll-area {
+    transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1),
+                opacity 0.35s ease;
+    max-height: 100vh;
+    opacity: 1;
+  }
+  body.timer-expanded .scroll-area {
+    max-height: 0 !important;
+    opacity: 0;
+    overflow: hidden;
+    flex: 0;
+  }
+  body.timer-expanded .timer-panel {
+    padding-bottom: 1.5rem;
+  }
+  body.timer-expanded .timer-big {
+    font-size: 11rem;
+  }
+  body.timer-expanded .ring-wrap {
+    width: 180px;
+    height: 180px;
+  }
+  body.timer-expanded .timer-ex-name {
+    font-size: 2.2rem;
+  }
+  body.timer-expanded .timer-display-row {
+    gap: 1.25rem;
+    align-items: center;
+  }
+  body.timer-expanded .controls-col {
+    width: 72px;
+  }
+  body.timer-expanded .timer-handle-bar {
+    width: 52px;
+    background: var(--muted);
+  }
 
   /* COMPLETE SCREEN */
   .complete-screen {
@@ -423,7 +480,6 @@
     <!-- Left: timer info -->
     <div class="timer-body">
       <div class="timer-ex-name" id="tExName">Dead Hang</div>
-      <div class="timer-set-info" id="tSetInfo">Set 1 of 2 · 40s work · 20s rest</div>
       <div class="timer-display-row">
         <div class="timer-left">
           <div class="timer-phase-badge phase-work" id="tPhaseBadge">Work</div>
@@ -450,6 +506,10 @@
         <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg> Start
       </button>
     </div>
+  </div>
+  <!-- Drag handle — swipe down to expand, swipe up / tap to collapse -->
+  <div class="timer-handle" id="timerHandle">
+    <div class="timer-handle-bar"></div>
   </div>
 </div>
 
@@ -706,8 +766,7 @@ function updateTimerPanel() {
   const e = b.exercises[state.currentExIdx];
   const es = currentExState();
   document.getElementById('tExName').textContent = e.name;
-  document.getElementById('tSetInfo').textContent = `Set ${state.currentSet+1} of ${e.sets} · ${e.work}s work · ${e.rest}s rest`;
-  document.getElementById('ringSet').textContent = `${state.currentSet+1}/${e.sets}`;
+document.getElementById('ringSet').textContent = `${state.currentSet+1}/${e.sets}`;
   updateCountdownDisplay();
 }
 
@@ -961,6 +1020,29 @@ function resetAll() {
   buildList();
   updateSummary();
 }
+
+// DRAG-TO-EXPAND TIMER PANEL
+(function() {
+  const handle = document.getElementById('timerHandle');
+  let startY = 0, startTime = 0;
+
+  function onStart(y) { startY = y; startTime = Date.now(); }
+  function onEnd(y) {
+    const dy = y - startY;
+    const dt = Date.now() - startTime;
+    const isSwipe = dt < 400;
+    const expanded = document.body.classList.contains('timer-expanded');
+    if (!expanded && isSwipe && dy > 40)  document.body.classList.add('timer-expanded');
+    if ( expanded && isSwipe && dy < -40) document.body.classList.remove('timer-expanded');
+    // Tap to toggle
+    if (Math.abs(dy) < 10 && dt < 250) document.body.classList.toggle('timer-expanded');
+  }
+
+  handle.addEventListener('touchstart', e => onStart(e.touches[0].clientY), {passive:true});
+  handle.addEventListener('touchend',   e => onEnd(e.changedTouches[0].clientY), {passive:true});
+  handle.addEventListener('mousedown',  e => onStart(e.clientY));
+  window.addEventListener('mouseup',    e => { if (startY) { onEnd(e.clientY); startY = 0; } });
+})();
 
 // INIT
 state.timeLeft = currentEx().work;
