@@ -234,8 +234,8 @@
   }
   .btn {
     padding: 0.3rem 0.5rem;
-    height: 36px; /* explicit half-height */
-    flex: 0 0 36px;
+    height: 42px; /* ~15% taller than previous 36px */
+    flex: 0 0 42px;
     border-radius: 8px;
     border: 1px solid var(--border);
     background: var(--surface2);
@@ -711,9 +711,9 @@
   <div class="complete-title">Sesión Completa</div>
   <div class="complete-sub" id="completeSub">Total time: —</div>
   <div class="complete-stats">
-    <div class="sum-card"><div class="s-label">Exercises</div><div class="s-val">15</div></div>
-    <div class="sum-card"><div class="s-label">Sets</div><div class="s-val">28</div></div>
-    <div class="sum-card"><div class="s-label">Blocks</div><div class="s-val">5</div></div>
+    <div class="sum-card"><div class="s-label">Exercises</div><div class="s-val" id="statExercises">—</div></div>
+    <div class="sum-card"><div class="s-label">Sets</div><div class="s-val" id="statSets">—</div></div>
+    <div class="sum-card"><div class="s-label">Blocks</div><div class="s-val" id="statBlocks">—</div></div>
   </div>
 </div>
 
@@ -1175,10 +1175,10 @@ function finishSet() {
   } else {
     state.phase = 'work';
     state.timeLeft = e.work;
+    _playSetAudio(); // set 2 (or beyond) cue — fired here because no countdown runs between sets
     updateTimerPanel();
     buildList();
     updateSummary();
-    // no toast for mid-exercise set transitions
   }
 }
 
@@ -1198,12 +1198,10 @@ function advanceExercise() {
       clearInterval(state.timerInterval);
       clearInterval(state.sessionInterval);
       state.running = false;
-      syncStartBtn('start'); // reset button back to Start
+      syncStartBtn('start');
       _playCompleted();
-      exitFocus(); // close focus screen if open
-      const cs = document.getElementById('completeScreen');
-      cs.classList.add('show');
-      document.getElementById('completeSub').textContent = 'Total time: ' + fmtClock(state.sessionElapsed);
+      exitFocus();
+      showCompleteScreen();
       return;
     }
     // Expand next block
@@ -1305,9 +1303,20 @@ function finishSession() {
   syncStartBtn('start');
   _playCompleted();
   exitFocus();
-  const cs = document.getElementById('completeScreen');
-  cs.classList.add('show');
-  document.getElementById('completeSub').textContent = 'Total time: ' + fmtClock(state.sessionElapsed);
+  showCompleteScreen();
+}
+
+function showCompleteScreen() {
+  const doneEx   = completedExercises();
+  const totalEx  = totalExercises();
+  const doneSets = completedSets();
+  const totSets  = totalSets();
+  const doneBlk  = Math.min(state.currentBlockIdx + (completedExercises() > 0 ? 1 : 0), DATA.length);
+  document.getElementById('completeScreen').classList.add('show');
+  document.getElementById('completeSub').textContent    = 'Total time: ' + fmtClock(state.sessionElapsed);
+  document.getElementById('statExercises').textContent  = `${doneEx}/${totalEx}`;
+  document.getElementById('statSets').textContent       = `${doneSets}/${totSets}`;
+  document.getElementById('statBlocks').textContent     = `${doneBlk}/${DATA.length}`;
 }
 
 // INIT
